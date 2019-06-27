@@ -1,0 +1,10 @@
+[package]
+name = "rusti"
+version = "0.1.0"
+authors = ["Jack Frost <j4qfrost@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+serenity = "0.6.0"
+gremlin_client = "0.2.0"
+redis = "0.10.0"

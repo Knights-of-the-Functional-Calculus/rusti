@@ -1,0 +1,11 @@
+version: "3"
+services:
+  rusti-bot:
+    build:
+      context: "."
+      dockerfile: Dockerfile
+  gremlin-server:
+    image: tinkerpop/gremlin-server:3.4
+    command : ["conf/gremlin-server-modern.yaml"]  
+    ports:
+      - "8182:8182"
