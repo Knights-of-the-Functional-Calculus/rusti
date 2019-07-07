@@ -1,0 +1,3 @@
+[submodule "redispeech"]
+	path = redispeech
+	url = git@github.com:Knights-of-the-Functional-Calculus/redispeech.git
