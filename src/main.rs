@@ -10,6 +10,8 @@ use serenity::framework::standard::{
     }
 };
 
+mod commands;
+
 group!({
     name: "general",
     options: {},
