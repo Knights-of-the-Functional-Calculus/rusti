@@ -1,3 +1,5 @@
+//! THis effort is shelved.
+
 //! Requires the "client", "standard_framework", and "voice" features be enabled
 //! in your Cargo.toml, like so:
 //!
@@ -11,11 +13,11 @@ use std::{env, sync::Arc};
 use serenity::{
     client::{bridge::voice::ClientVoiceManager, Client, Context, EventHandler},
     framework::{
-        StandardFramework,
         standard::{
-            Args, CommandResult,
             macros::{command, group},
+            Args, CommandResult,
         },
+        StandardFramework,
     },
     model::{channel::Message, gateway::Ready, id::ChannelId, misc::Mentionable},
     prelude::*,
@@ -23,7 +25,12 @@ use serenity::{
     Result as SerenityResult,
 };
 
+use lapin::{Channel, Connection};
+use lapin_async as lapin;
+
 use message_broker::rabbit;
+
+const QUEUE_NAME: &str = "audio";
 
 struct VoiceManager;
 
@@ -40,16 +47,23 @@ impl EventHandler for Handler {
 }
 
 struct Receiver {
-    callback: Fn(&str, &[i16])
-};
+    publish_channel: Channel,
+}
 
 impl Receiver {
-    pub fn new() -> Self {
+    pub fn new(rabbitmq_conn: Connection) -> Self {
         // You can manage state here, such as a buffer of audio packet bytes so
         // you can later store them in intervals.
-        Self { 
-            callback: rabbit::send_message
-        }
+        let broker_host: &str = &env::var("BROKER_HOST").unwrap();
+        let broker_port: &str = &env::var("BROKER_PORT").unwrap();
+        let publish_channel: Channel = rabbitmq_conn
+            .create_channel()
+            .wait()
+            .expect("create_channel");
+
+        Self {
+            publish_channel: publish_channel,
+        };
     }
 }
 
@@ -78,7 +92,10 @@ impl AudioReceiver for Receiver {
             compressed_size,
             ssrc,
         );
-        self.callback("audio", data);
+        let mut converted: Vec<u8> = vec![0; data.len() * 2];
+        LittleEndian::read_u8_into(data, &mut converted);
+
+        send_message(&publish_channel, "audio", &converted);
     }
 
     fn client_connect(&mut self, _ssrc: u32, _user_id: u64) {
@@ -95,31 +112,42 @@ impl AudioReceiver for Receiver {
 }
 
 #[command]
-fn join(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
+pub fn join(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
     let connect_to = match args.single::<u64>() {
         Ok(id) => ChannelId(id),
         Err(_) => {
             check_msg(msg.reply(&ctx, "Requires a valid voice channel ID be given"));
 
             return Ok(());
-        },
+        }
     };
 
     let guild_id = match ctx.cache.read().guild_channel(msg.channel_id) {
         Some(channel) => channel.read().guild_id,
         None => {
-            check_msg(msg.channel_id.say(&ctx.http, "Groups and DMs not supported"));
+            check_msg(
+                msg.channel_id
+                    .say(&ctx.http, "Groups and DMs not supported"),
+            );
 
             return Ok(());
-        },
+        }
     };
 
-    let manager_lock = ctx.data.read().get::<VoiceManager>().cloned().expect("Expected VoiceManager in ShareMap.");
+    let manager_lock = ctx
+        .data
+        .read()
+        .get::<VoiceManager>()
+        .cloned()
+        .expect("Expected VoiceManager in ShareMap.");
     let mut manager = manager_lock.lock();
 
     if let Some(handler) = manager.join(guild_id, connect_to) {
         handler.listen(Some(Box::new(Receiver::new())));
-        check_msg(msg.channel_id.say(&ctx.http, &format!("Joined {}", connect_to.mention())));
+        check_msg(
+            msg.channel_id
+                .say(&ctx.http, &format!("Joined {}", connect_to.mention())),
+        );
     } else {
         check_msg(msg.channel_id.say(&ctx.http, "Error joining the channel"));
     }
@@ -135,34 +163,35 @@ fn join(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
 }
 
 #[command]
-fn leave(ctx: &mut Context, msg: &Message) -> CommandResult {
+pub fn leave(ctx: &mut Context, msg: &Message) -> CommandResult {
     let guild_id = match ctx.cache.read().guild_channel(msg.channel_id) {
         Some(channel) => channel.read().guild_id,
         None => {
-            check_msg(msg.channel_id.say(&ctx.http, "Groups and DMs not supported"));
+            check_msg(
+                msg.channel_id
+                    .say(&ctx.http, "Groups and DMs not supported"),
+            );
 
             return Ok(());
-        },
+        }
     };
 
-    let manager_lock = ctx.data.read().get::<VoiceManager>().cloned().expect("Expected VoiceManager in ShareMap.");
+    let manager_lock = ctx
+        .data
+        .read()
+        .get::<VoiceManager>()
+        .cloned()
+        .expect("Expected VoiceManager in ShareMap.");
     let mut manager = manager_lock.lock();
     let has_handler = manager.get(guild_id).is_some();
 
     if has_handler {
         manager.remove(guild_id);
 
-        check_msg(msg.channel_id.say(&ctx.http,"Left voice channel"));
+        check_msg(msg.channel_id.say(&ctx.http, "Left voice channel"));
     } else {
         check_msg(msg.reply(&ctx, "Not in a voice channel"));
     }
-
-    Ok(())
-}
-
-#[command]
-fn ping(ctx: &mut Context, msg: &Message) -> CommandResult {
-    check_msg(msg.channel_id.say(&ctx.http,"Pong!"));
 
     Ok(())
 }

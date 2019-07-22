@@ -6,6 +6,4 @@ edition = "2018"
 
 [dependencies]
 serenity = "0.6.0"
-lapin-futures = "0.24.0"
-# gremlin_client = "0.2.0"
-# redis = "0.10.0"
+# lapin-async = "0.22.0"

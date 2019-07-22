@@ -10,12 +10,12 @@ use serenity::framework::standard::{
     }
 };
 
-mod commands;
+mod commands::iknow;
 
 group!({
     name: "general",
     options: {},
-    commands: [ping],
+    commands: [ping, iknow],
 });
 
 use std::env;

@@ -1,1 +1,1 @@
-module rabbit;
+pub mod rabbit;
