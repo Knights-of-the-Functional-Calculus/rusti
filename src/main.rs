@@ -10,12 +10,16 @@ use serenity::framework::standard::{
     }
 };
 
-mod commands::iknow;
+extern crate reqwest;
+#[macro_use]
+extern crate serde_json;
+
+mod commands;
 
 group!({
     name: "general",
     options: {},
-    commands: [ping, iknow],
+    commands: [],
 });
 
 use std::env;
@@ -29,8 +33,8 @@ fn main() {
     let mut client = Client::new(&env::var("DISCORD_TOKEN").expect("token"), Handler)
         .expect("Error creating client");
     client.with_framework(StandardFramework::new()
-        .configure(|c| c.prefix("~")) // set the bot's prefix to "~"
-        .group(&GENERAL_GROUP));
+        .configure(|c| c.prefix("~"))); // set the bot's prefix to "~"
+        // .group(&GENERAL_GROUP));
 
     // start listening for events by starting a single shard
     if let Err(why) = client.start() {

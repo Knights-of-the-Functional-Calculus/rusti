@@ -14,9 +14,7 @@ use serenity::{
     utils::{content_safe, ContentSafeOptions},
 };
 
-extern crate reqwest;
-#[macro_use]
-extern crate serde_json;
+use std::env;
 
 #[command]
 pub fn iknow(ctx: &mut Context, msg: &Message, args: Args) -> CommandResult {
@@ -41,15 +39,16 @@ pub fn iknow(ctx: &mut Context, msg: &Message, args: Args) -> CommandResult {
         let guild = msg.guild();
         let role = guild.role_by_name(skill);
         if msg.author.has_role(&ctx.http, guild, role).unwrap() {
-            msg.reply(format!("I know quit bragging..."));
+            msg.reply(&ctx.http, &format!("I know quit bragging..."));
         } else {
-            if msg.is_private() && let repo: String = args.single::<String>()? {
+            let repo: String = args.single::<String>()?;
+            if msg.is_private() && repo {
                 let resp: serde_json::Value = reqwest::Client::new()
-                    .post(format!("https://api.travis-ci.com/repo/travis-ci%2FKnights-of-the-Functional-Calculus/code-skill-validator-{}", skill))
+                    .post(&format!("https://api.travis-ci.com/repo/travis-ci%2FKnights-of-the-Functional-Calculus/code-skill-validator-{}", skill))
                     .header("Travis-API-Version", "3")
                     .header(
                         "Authorization",
-                        format!("token {}", &env::var("TRAVIS_TOKEN").unwrap()),
+                        &format!("token {}", &env::var("TRAVIS_TOKEN").unwrap()),
                     )
                     .json(&json!({
                      "request": {
@@ -65,17 +64,20 @@ pub fn iknow(ctx: &mut Context, msg: &Message, args: Args) -> CommandResult {
                     .send()?
                     .json()?;
                 println!("{:#?}", resp);
-                msg.reply(format!(
-                    "It will take a while to test your code. I'll will ping you in a bit."
-                ));
+                msg.reply(
+                    &ctx.http,
+                    &format!(
+                        "It will take a while to test your code. I'll will ping you in a bit."
+                    ),
+                );
             } else {
-                msg.reply(format!(
-                    format!("You will need to to pass the tests here: https://github.com/Knights-of-the-Functional-Calculus/code-skill-validator-{}. Slide into my DMs and send me your git repo with the same command <3", skill)
-                ));
+                msg.reply(&ctx.http,
+                    &format!("You will need to to pass the tests here: https://github.com/Knights-of-the-Functional-Calculus/code-skill-validator-{}. Slide into my DMs and send me your git repo with the same command <3", skill)
+                );
             }
         }
     } else {
-        msg.reply(&ctx.http, format!("Oh shit, we got a badass over here..."));
+        msg.reply(&ctx.http, &format!("Oh shit, we got a badass over here..."));
     }
 
     Ok(())
