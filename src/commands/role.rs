@@ -1,83 +1,73 @@
-use serenity::prelude::{EventHandler, Context};
+use serenity::prelude::Context;
 use serenity::{
-    client::bridge::gateway::{ShardId, ShardManager},
-    framework::standard::{
-        help_commands,
-        macros::{check, command, group, help},
-        Args, CheckResult, CommandGroup, CommandOptions, CommandResult, DispatchError, HelpOptions,
-        StandardFramework,
-    },
-    model::{
-        channel::{Channel, Message},
-        gateway::Ready,
-        id::UserId,
-    },
-    utils::{content_safe, ContentSafeOptions},
+    framework::standard::{macros::command, macros::group, Args, CommandResult},
+    model::channel::Message,
 };
+
+use std::sync::Arc;
+
+use crate::util::travis::*;
 
 use std::env;
 
+group!({
+    name: "role",
+    options: {},
+    commands: [iknow],
+});
+
 #[command]
-pub fn iknow(ctx: &mut Context, msg: &Message, args: Args) -> CommandResult {
-    let settings = if let Some(guild_id) = msg.guild_id {
-        // By default roles, users, and channel mentions are cleaned.
-        ContentSafeOptions::default()
-            // We do not want to clean channal mentions as they
-            // do not ping users.
-            .clean_channel(false)
-            // If it's a guild channel, we want mentioned users to be displayed
-            // as their display name.
-            .display_as_member_from(guild_id)
-    } else {
-        ContentSafeOptions::default()
-            .clean_channel(false)
-            .clean_role(false)
-    };
+#[cfg(feature = "cache")]
+fn iknow(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
+    if args.is_empty() {
+        msg.reply(&ctx, "What?").expect("Message not sent.");
+        return Ok(());
+    }
 
     let skill: String = args.single::<String>()?.to_lowercase();
-    const PROGRAMMING_LANGUAGES: [String; 2] = ["python", "javascript"];
-    if PROGRAMMING_LANGUAGES.contains(&skill) {
-        let guild = msg.guild(&ctx.http);
-        let role = guild.role_by_name(&skill);
-        if msg.author.has_role(&ctx.http, guild, role).unwrap() {
-            msg.reply(&format!("I know quit bragging..."));
+    const PROGRAMMING_LANGUAGES: [&str; 2] = ["python", "javascript"];
+    println!("iknow:\t{:?}", msg.author.name);
+    if PROGRAMMING_LANGUAGES.contains(&skill.as_str()) {
+        let lock = msg.guild(&ctx).unwrap().clone();
+        let guild = lock.read();
+        let role = guild.role_by_name(&skill.as_str()).unwrap();
+        if msg.author.has_role(&ctx, guild.id, role).unwrap() {
+            msg.reply(&ctx, "I know quit bragging...")
+                .expect("Message not sent.");
         } else {
-            let repo: String = args.single::<String>()?;
-            if msg.is_private() {
-                let resp: serde_json::Value = reqwest::Client::new()
-                    .post(&format!("https://api.travis-ci.com/repo/travis-ci%2FKnights-of-the-Functional-Calculus/code-skill-validator-{}", skill))
-                    .header("Travis-API-Version", "3")
-                    .header(
-                        "Authorization",
-                        &format!("token {}", &env::var("TRAVIS_TOKEN").unwrap()),
-                    )
-                    .json(&json!({
-                     "request": {
-                     "message": format!("User: {}#{}, Language: {}, Repo: {}", msg.author.name, msg.author.discriminator, skill, repo),
-                     "branch":"master",
-                     "config": {
-                       "env": {
-                         "REPO": repo
-                       },
-                       "script": "sh entrypoint.sh"
-                      }
-                    }}))
-                    .send()?
-                    .json()?;
-                println!("{:#?}", resp);
-                msg.reply(
-                    &format!(
-                        "It will take a while to test your code. I'll will ping you in a bit."
-                    ),
+            if let Ok(repo) = args.single::<String>() {
+                let body: &serde_json::Value = &json!({
+                 "request": {
+                 "message": format!("User: {}#{}, Language: {}, Repo: {}", msg.author.name, msg.author.discriminator, skill, repo),
+                 "branch":"master",
+                 "config": {
+                   "env": {
+                     "REPO": repo
+                   }
+                  }
+                }});
+                post_travis_repo(
+                    "repo",
+                    "Knights-of-the-Functional-Calculus",
+                    "code-skill-validator-python",
+                    "requests",
+                    Some(body),
                 );
+
+                msg.reply(
+                    &ctx,
+                    "It will take a while to test your code. I'll will ping you in a bit.",
+                )
+                .expect("Message not sent.");
             } else {
-                msg.reply(
-                    &format!("You will need to to pass the tests here: https://github.com/Knights-of-the-Functional-Calculus/code-skill-validator-{}. Slide into my DMs and send me your git repo with the same command <3", skill)
-                );
+                msg.reply(&ctx,
+                    &format!("You will need to to pass the tests here: https://github.com/Knights-of-the-Functional-Calculus/code-skill-validator-{0}. Send me your git repo like so: ```~iknow {0} <git repo>```", skill)
+                ).expect("Message not sent.");
             }
         }
     } else {
-        msg.reply(&format!("Oh shit, we got a badass over here..."));
+        msg.reply(&ctx, "Oh shit, we got a badass over here...")
+            .expect("Message not sent.");
     }
 
     Ok(())

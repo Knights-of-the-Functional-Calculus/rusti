@@ -1,11 +1,22 @@
-FROM rust:latest
+FROM rust:latest as builder
 
 WORKDIR /src/rusti
-COPY . .
 
-ENV DISCORD_TOKEN ${DISCORD_TOKEN}
-ENV TRAVIS_TOKEN ${TRAVIS_TOKEN}
+ENV USER rust
 
-RUN cargo install --path .
+RUN cargo init
+
+COPY Cargo.toml .
+COPY  Cargo.lock .
+
+RUN cargo build --release
+RUN rm -f target/release/deps/rusti*
+
+COPY src src
+RUN cargo build --release --features "cache"
+
+FROM alpine:latest
+
+COPY --from=builder /src/rusti/target/release/rusti /usr/local/bin/rusti
 
 CMD ["rusti"]

@@ -1,12 +1,14 @@
 version: "3"
 services:
   rusti-bot:
-    build: .
+    image: rusti-bot
     container_name: rusti-bot
     environment:
-      RUST_BACKTRACE: 1
+      RUST_BACKTRACE: full
       BROKER_HOST: broker
       BROKER_PORT: 5672
+      DISCORD_TOKEN: ${DISCORD_TOKEN}
+      TRAVIS_TOKEN: ${TRAVIS_TOKEN}
 #   redispeech-rust:
 #     image: redispeech-rust
 #     # build: .
