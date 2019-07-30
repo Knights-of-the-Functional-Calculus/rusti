@@ -1,1 +1,2 @@
 # rusti
+This is still a very hacky work in progress. I am still learning rust and all its idosyncracies. The bot is a set of utilities I will be using to help with moderating the [discord server](https://discord.gg/Qw9pvk2) for my main project.
