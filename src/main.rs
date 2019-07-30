@@ -1,3 +1,4 @@
+extern crate serenity;
 use serenity::client::Client;
 use serenity::framework::standard::{macros::group, StandardFramework};
 use serenity::prelude::EventHandler;
@@ -14,10 +15,22 @@ use crate::commands::role::*;
 mod util;
 use crate::util::travis::*;
 
+mod web_server;
+use crate::web_server::*;
+
 use std::env;
+
+extern crate hyper;
 
 #[macro_use]
 extern crate serde_json;
+
+extern crate gotham;
+#[macro_use]
+extern crate gotham_derive;
+
+extern crate futures;
+extern crate mime;
 
 group!({
     name: "general",
@@ -42,6 +55,10 @@ impl EventHandler for Handler {
             "activate",
             None,
         );
+
+        let addr = format!("rusti-bot:{}", &env::var("WEBHOOK_PORT").expect("port"));
+        println!("Listening for requests at http://{}", &addr);
+        gotham::start(addr, webhook::router(&context));
     }
 }
 

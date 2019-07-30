@@ -4,8 +4,6 @@ use serenity::{
     model::channel::Message,
 };
 
-use std::sync::Arc;
-
 use crate::util::travis::*;
 
 use std::env;
@@ -42,7 +40,10 @@ fn iknow(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
                  "branch":"master",
                  "config": {
                    "env": {
-                     "REPO": repo
+                     "REPO": repo,
+                     "user_id": msg.author.id,
+                     "guild_id": guild.id,
+                     "role": skill
                    }
                   }
                 }});

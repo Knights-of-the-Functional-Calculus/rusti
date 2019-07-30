@@ -1,22 +1,22 @@
-FROM rust:latest as builder
+FROM  ekidd/rust-musl-builder as builder
 
-WORKDIR /src/rusti
+WORKDIR /home/rust/ 
 
-ENV USER rust
-
-RUN cargo init
+RUN rustup toolchain install nightly && rustup default nightly && rustup target add x86_64-unknown-linux-musl
 
 COPY Cargo.toml .
 COPY  Cargo.lock .
 
-RUN cargo build --release
+RUN echo "fn main() {println!(\"if you see this, the build broke\")}" > src/main.rs
+
+RUN RUSTFLAGS=-Clinker=musl-gcc cargo +nightly build --release --target=x86_64-unknown-linux-musl
 RUN rm -f target/release/deps/rusti*
 
 COPY src src
-RUN cargo build --release --features "cache"
+RUN RUSTFLAGS=-Clinker=musl-gcc cargo +nightly build --release --target=x86_64-unknown-linux-musl --features "cache" --verbose
 
 FROM alpine:latest
 
-COPY --from=builder /src/rusti/target/release/rusti /usr/local/bin/rusti
+COPY --from=builder /home/rust/target/x86_64-unknown-linux-musl/release/rusti /bin/rusti
 
 CMD ["rusti"]
