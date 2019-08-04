@@ -1,13 +1,3 @@
-//! THis effort is shelved.
-
-//! Requires the "client", "standard_framework", and "voice" features be enabled
-//! in your Cargo.toml, like so:
-//!
-//! ```toml
-//! [dependencies.serenity]
-//! git = "https://github.com/serenity-rs/serenity.git"
-//! features = ["client", "standard_framework", "voice"]
-//! ```
 use std::{env, sync::Arc};
 
 use serenity::{

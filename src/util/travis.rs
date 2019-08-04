@@ -23,10 +23,10 @@ pub fn post_travis_repo(
         req.send().unwrap()
     };
 
-    println!("{:?}", resp);
+    debug!("{:?}", resp);
 
     if let Ok(val) = resp.json() {
-        println!("{:?}", val);
+        debug!("{:?}", val);
         return val;
     }
     serde_json::Value::Null

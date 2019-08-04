@@ -55,7 +55,7 @@ pub fn send_message(publish_channel: &Channel, queue_name: &str, payload: &[u8])
         )
         .wait()
         .expect("basic_publish");
-    println!("Payload sent to {}", queue_name);
+    debug!("Payload sent to {}", queue_name);
 }
 
 pub fn attach_consumer(
@@ -90,5 +90,5 @@ pub fn attach_consumer(
         )
         .wait()
         .expect("basic_consume");
-    println!("Consumer attached to {}", queue_name);
+    debug!("Consumer attached to {}", queue_name);
 }

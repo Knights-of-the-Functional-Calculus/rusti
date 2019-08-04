@@ -7,17 +7,13 @@ use gotham::router::builder::*;
 use gotham::router::Router;
 use gotham::state::{FromState, State};
 
-use serenity::cache::CacheRwLock;
 use serenity::client::Context;
-use serenity::http::{CacheHttp, Http};
-use serenity::model::id::GuildId;
 
 use crate::futures::{future, Future, Stream};
-use hyper::{Body, HeaderMap, Method, Response, StatusCode, Uri, Version};
+use hyper::{Body, HeaderMap, Method, StatusCode, Uri, Version};
 
 use serde_json::Value;
 
-use std::ops::DerefMut;
 use std::sync::{Arc, Mutex};
 
 /// Request counting struct, used to track the number of requests made.
@@ -49,10 +45,10 @@ fn print_request_elements(state: &State) {
     let uri = Uri::borrow_from(state);
     let http_version = Version::borrow_from(state);
     let headers = HeaderMap::borrow_from(state);
-    println!("Method: {:?}", method);
-    println!("URI: {:?}", uri);
-    println!("HTTP Version: {:?}", http_version);
-    println!("Headers: {:?}", headers);
+    debug!("Method: {:?}", method);
+    debug!("URI: {:?}", uri);
+    debug!("HTTP Version: {:?}", http_version);
+    debug!("Headers: {:?}", headers);
 }
 
 /// TODO: Validate travis api token
@@ -64,7 +60,7 @@ fn post_assign_role(mut state: State) -> Box<HandlerFuture> {
             Ok(valid_body) => {
                 let body_content: Value =
                     serde_json::from_str(&String::from_utf8(valid_body.to_vec()).unwrap()).unwrap();
-                println!("Body: {:?}", body_content);
+                debug!("Body: {:?}", body_content);
                 let context = SerenityCache::borrow_from(&state).context.lock().unwrap();
 
                 if let Some(travis_env) = body_content.get("global_env").unwrap().as_object() {
@@ -83,10 +79,15 @@ fn post_assign_role(mut state: State) -> Box<HandlerFuture> {
                     let guild = context.cache.read().guild(guild_id).unwrap();
                     let guild_read = guild.read();
                     let role = guild_read.role_by_name(role).unwrap();
-                    guild_read
+                    match guild_read
                         .member(context.http.as_ref(), user_id)
                         .unwrap()
-                        .add_role(&context.http, role);
+                        .add_role(&context.http, role)
+                    {
+                        Ok(res) => debug!("{:?}", res),
+                        Err(error) => error!("{:?}", error),
+                    }
+
                     drop(context);
 
                     let res = create_empty_response(&state, StatusCode::OK);

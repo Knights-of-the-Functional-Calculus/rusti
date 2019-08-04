@@ -8,7 +8,6 @@ edition = "2018"
 cache  = []
 
 [dependencies]
-serenity = "0.6.3"
 # lapin-async = "0.22.0"
 reqwest = "0.9.19"
 serde = {version = "1.0.97", features = ["derive"]  }
@@ -16,5 +15,10 @@ serde_json = "1.0.40"
 hyper = "0.12"
 gotham = "0.4.0"
 gotham_derive = "0.4.0"
-mime = "0.3.13"
+# mime = "0.3.13"
 futures = "0.1.28"
+log = { version = "0.4", features = ["std", "serde"] }
+
+[dependencies.serenity]
+version = "0.6.3"
+features = ["cache"]

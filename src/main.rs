@@ -9,6 +9,9 @@ use serenity::{
     model::{channel::Message, gateway::Ready},
 };
 
+#[macro_use]
+extern crate log;
+
 mod commands;
 use crate::commands::role::*;
 
@@ -30,7 +33,6 @@ extern crate gotham;
 extern crate gotham_derive;
 
 extern crate futures;
-extern crate mime;
 
 group!({
     name: "general",
@@ -42,11 +44,15 @@ struct Handler;
 
 impl EventHandler for Handler {
     fn ready(&self, context: Context, ready: Ready) {
-        println!("{} is connected!", ready.user.name);
+        debug!("{} is connected!", ready.user.name);
         for guild in ready.guilds {
-            guild
+            match guild
                 .id()
-                .create_role(&context.http, |r| r.hoist(true).name("python"));
+                .create_role(&context.http, |r| r.hoist(true).name("python"))
+            {
+                Ok(res) => debug!("{:?}", res),
+                Err(error) => error!("{:?}", error),
+            };
         }
         post_travis_repo(
             "repo",
@@ -57,7 +63,7 @@ impl EventHandler for Handler {
         );
 
         let addr = format!("rusti-bot:{}", &env::var("WEBHOOK_PORT").expect("port"));
-        println!("Listening for requests at http://{}", &addr);
+        error!("Listening for requests at http://{}", &addr);
         gotham::start(addr, webhook::router(&context));
     }
 }
@@ -75,14 +81,14 @@ fn main() {
 
     // start listening for events by starting a single shard
     if let Err(why) = client.start() {
-        println!("An error occurred while running the client: {:?}", why);
+        error!("An error occurred while running the client: {:?}", why);
     }
 }
 
 #[command]
 fn ping(ctx: &mut Context, msg: &Message) -> CommandResult {
     msg.reply(ctx, "Pong!")?;
-    println!("ping:\t{:?}", msg.author.name);
+    debug!("ping:\t{:?}", msg.author.name);
 
     Ok(())
 }

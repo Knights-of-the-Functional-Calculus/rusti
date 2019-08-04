@@ -6,8 +6,6 @@ use serenity::{
 
 use crate::util::travis::*;
 
-use std::env;
-
 group!({
     name: "role",
     options: {},
@@ -15,7 +13,6 @@ group!({
 });
 
 #[command]
-#[cfg(feature = "cache")]
 fn iknow(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
     if args.is_empty() {
         msg.reply(&ctx, "What?").expect("Message not sent.");
@@ -24,7 +21,7 @@ fn iknow(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
 
     let skill: String = args.single::<String>()?.to_lowercase();
     const PROGRAMMING_LANGUAGES: [&str; 2] = ["python", "javascript"];
-    println!("iknow:\t{:?}", msg.author.name);
+    debug!("iknow:\t{:?}", msg.author.name);
     if PROGRAMMING_LANGUAGES.contains(&skill.as_str()) {
         let lock = msg.guild(&ctx).unwrap().clone();
         let guild = lock.read();
