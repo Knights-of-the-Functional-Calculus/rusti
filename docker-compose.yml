@@ -10,6 +10,7 @@ services:
       DISCORD_TOKEN: ${DISCORD_TOKEN}
       TRAVIS_TOKEN: ${TRAVIS_TOKEN}
       WEBHOOK_PORT: 8080
+      RUST_LOG: debug
     expose:
       - "8080"
 #   redispeech-rust:
