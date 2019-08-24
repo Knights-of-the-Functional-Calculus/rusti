@@ -16,22 +16,12 @@ use serde_json::Value;
 
 use std::sync::{Arc, Mutex};
 
-/// Request counting struct, used to track the number of requests made.
-///
-/// Due to being shared across many worker threads, the internal counter
-/// is bound inside an `Arc` (to enable sharing) and a `Mutex` (to enable
-/// modification from multiple threads safely).
-///
-/// This struct must implement `Clone` and `StateData` to be applicable
-/// for use with the `StateMiddleware`, and be shared via `Middleware`.
 #[derive(Clone, StateData)]
 struct SerenityCache {
     context: Arc<Mutex<Context>>,
 }
 
-/// Counter implementation.
 impl SerenityCache {
-    /// Creates a new request counter, setting the base state to `0`.
     fn new(context: &Context) -> Self {
         Self {
             context: Arc::new(Mutex::new(context.clone())),
@@ -39,7 +29,6 @@ impl SerenityCache {
     }
 }
 
-/// Extract the main elements of the request except for the `Body`
 fn print_request_elements(state: &State) {
     let method = Method::borrow_from(state);
     let uri = Uri::borrow_from(state);
@@ -51,19 +40,21 @@ fn print_request_elements(state: &State) {
     debug!("Headers: {:?}", headers);
 }
 
-/// TODO: Validate travis api token
 fn post_assign_role(mut state: State) -> Box<HandlerFuture> {
     print_request_elements(&state);
     let f = Body::take_from(&mut state)
         .concat2()
         .then(|full_body| match full_body {
             Ok(valid_body) => {
+                println!("{:?}", serde_json::from_slice(valid_body.to_vec().as_ref()));
                 let body_content: Value =
                     serde_json::from_str(&String::from_utf8(valid_body.to_vec()).unwrap()).unwrap();
                 debug!("Body: {:?}", body_content);
                 let context = SerenityCache::borrow_from(&state).context.lock().unwrap();
 
+                println!("stuff");
                 if let Some(travis_env) = body_content.get("global_env").unwrap().as_object() {
+                    println!("stuff");
                     let guild_id = travis_env
                         .get("guild_id")
                         .unwrap()
@@ -75,10 +66,11 @@ fn post_assign_role(mut state: State) -> Box<HandlerFuture> {
                         .as_u64()
                         .expect("user_id");
                     let role = travis_env.get("role").unwrap().as_str().expect("role");
-
+                    println!("stuff");
                     let guild = context.cache.read().guild(guild_id).unwrap();
                     let guild_read = guild.read();
                     let role = guild_read.role_by_name(role).unwrap();
+                    println!("stuff");
                     match guild_read
                         .member(context.http.as_ref(), user_id)
                         .unwrap()
@@ -87,12 +79,14 @@ fn post_assign_role(mut state: State) -> Box<HandlerFuture> {
                         Ok(res) => debug!("{:?}", res),
                         Err(error) => error!("{:?}", error),
                     }
+                    println!("stuff");
 
                     drop(context);
 
                     let res = create_empty_response(&state, StatusCode::OK);
                     future::ok((state, res))
                 } else {
+                    println!("stuff");
                     drop(context);
                     future::err((state, std::io::Error::last_os_error().into_handler_error()))
                 }
@@ -105,7 +99,6 @@ fn post_assign_role(mut state: State) -> Box<HandlerFuture> {
 
 /// Create a `Router`
 ///
-/// /products?name=...             --> GET
 pub fn router(context: &Context) -> Router {
     // create the counter to share across handlers
     let _context = SerenityCache::new(context);
@@ -119,11 +112,7 @@ pub fn router(context: &Context) -> Router {
     // construct a basic chain from our pipeline
     let (chain, pipelines) = single_pipeline(pipeline);
     build_router(chain, pipelines, |route| {
-        route
-            .post("/role")
-            // This tells the Router that for requests which match this route that query string
-            // extraction should be invoked storing the result in a `QueryStringExtractor` instance.
-            .to(post_assign_role);
+        route.post("/role").to(post_assign_role);
     })
 }
 

@@ -69,7 +69,6 @@ impl EventHandler for Handler {
 }
 
 fn main() {
-    log!(&env::var("RUST_LOG").expect("logging level"));
     // Login with a bot token from the environment
     let mut client = Client::new(&env::var("DISCORD_TOKEN").expect("token"), Handler)
         .expect("Error creating client");
