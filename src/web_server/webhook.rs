@@ -16,6 +16,8 @@ use serde_json::Value;
 
 use std::sync::{Arc, Mutex};
 
+use urlencoding;
+
 #[derive(Clone, StateData)]
 struct SerenityCache {
     context: Arc<Mutex<Context>>,
@@ -46,31 +48,34 @@ fn post_assign_role(mut state: State) -> Box<HandlerFuture> {
         .concat2()
         .then(|full_body| match full_body {
             Ok(valid_body) => {
-                println!("{:?}", serde_json::from_slice(valid_body.to_vec().as_ref()));
-                let body_content: Value =
-                    serde_json::from_str(&String::from_utf8(valid_body.to_vec()).unwrap()).unwrap();
+                let payload: &str = &String::from_utf8(valid_body.to_vec()[8..].to_vec()).unwrap();
+                let clean_payload: String = urlencoding::decode(payload).unwrap();
+                let body_content: Value = serde_json::from_str(&clean_payload).unwrap();
                 debug!("Body: {:?}", body_content);
                 let context = SerenityCache::borrow_from(&state).context.lock().unwrap();
-
-                println!("stuff");
-                if let Some(travis_env) = body_content.get("global_env").unwrap().as_object() {
-                    println!("stuff");
-                    let guild_id = travis_env
-                        .get("guild_id")
+                if let Some(travis_config) = body_content.get("config").unwrap().as_object() {
+                    let travis_env = travis_config.get("env").unwrap().as_array().unwrap();
+                    let env_array: Vec<String> = travis_env
+                        .get(0)
                         .unwrap()
-                        .as_u64()
-                        .expect("guild_id");
-                    let user_id = travis_env
-                        .get("user_id")
-                        .unwrap()
-                        .as_u64()
-                        .expect("user_id");
-                    let role = travis_env.get("role").unwrap().as_str().expect("role");
-                    println!("stuff");
+                        .to_string()
+                        .split("+")
+                        .map(|s| s.to_string())
+                        .collect();
+                    let role_name = &env_array[1].split("=").collect::<Vec<&str>>()[1];
+                    let user_id = env_array[2].split("=").collect::<Vec<&str>>()[1]
+                        .split("\"")
+                        .collect::<Vec<&str>>()[0]
+                        .parse::<u64>()
+                        .unwrap();
+                    let guild_id = env_array[3].split("=").collect::<Vec<&str>>()[1]
+                        .split("\"")
+                        .collect::<Vec<&str>>()[0]
+                        .parse::<u64>()
+                        .unwrap();
                     let guild = context.cache.read().guild(guild_id).unwrap();
                     let guild_read = guild.read();
-                    let role = guild_read.role_by_name(role).unwrap();
-                    println!("stuff");
+                    let role = guild_read.role_by_name(role_name).unwrap();
                     match guild_read
                         .member(context.http.as_ref(), user_id)
                         .unwrap()
@@ -79,14 +84,11 @@ fn post_assign_role(mut state: State) -> Box<HandlerFuture> {
                         Ok(res) => debug!("{:?}", res),
                         Err(error) => error!("{:?}", error),
                     }
-                    println!("stuff");
-
                     drop(context);
 
                     let res = create_empty_response(&state, StatusCode::OK);
                     future::ok((state, res))
                 } else {
-                    println!("stuff");
                     drop(context);
                     future::err((state, std::io::Error::last_os_error().into_handler_error()))
                 }

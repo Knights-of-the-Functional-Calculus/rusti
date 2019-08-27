@@ -4,6 +4,7 @@ use serenity::{
     model::channel::Message,
 };
 
+use crate::gremlin;
 use crate::util::travis::*;
 
 group!({
@@ -47,7 +48,7 @@ fn iknow(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
                 post_travis_repo(
                     "repo",
                     "Knights-of-the-Functional-Calculus",
-                    "code-skill-validator-python",
+                    format!("code-skill-validator-{}", skill),
                     "requests",
                     Some(body),
                 );

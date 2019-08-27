@@ -12,6 +12,8 @@ use serenity::{
 #[macro_use]
 extern crate log;
 
+extern crate env_logger;
+
 mod commands;
 use crate::commands::role::*;
 
@@ -62,13 +64,18 @@ impl EventHandler for Handler {
             None,
         );
 
-        let addr = format!("rusti-bot:{}", &env::var("WEBHOOK_PORT").expect("port"));
+        let addr = format!(
+            "{}:{}",
+            &env::var("WEBHOOK_HOST").expect("host"),
+            &env::var("WEBHOOK_PORT").expect("port")
+        );
         error!("Listening for requests at http://{}", &addr);
         gotham::start(addr, webhook::router(&context));
     }
 }
 
 fn main() {
+    env_logger::init();
     // Login with a bot token from the environment
     let mut client = Client::new(&env::var("DISCORD_TOKEN").expect("token"), Handler)
         .expect("Error creating client");
